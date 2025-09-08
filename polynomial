@@ -1,64 +1,71 @@
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import java.io.FileReader;
+package Test1;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.math.BigInteger;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-public class HashiraPlacements {
-    public static void main(String[] args) throws Exception {
-        // Replace with your JSON file path
-        String filename = "testcase.json";
+public class HashiraSolverNoLib {
 
-        // Parse JSON input
-        JSONParser parser = new JSONParser();
-        JSONObject jsonObject = (JSONObject) parser.parse(new FileReader(filename));
+    public static void main(String[] args) {
+        solve("input1.json");
+        solve("input2.json");
+    }
 
-        JSONObject keys = (JSONObject) jsonObject.get("keys");
-        int n = Integer.parseInt(keys.get("n").toString());
-        int k = Integer.parseInt(keys.get("k").toString());
+    public static void solve(String filename) {
+        try {
+            // Read entire file content as string
+            Scanner scanner = new Scanner(new File(filename));
+            scanner.useDelimiter("\\Z"); // EOF delimiter
+            String content = scanner.next();
+            scanner.close();
 
-        // Store decoded (x, y) pairs
-        List<Double> xList = new ArrayList<>();
-        List<Double> yList = new ArrayList<>();
+            // Extract n and k using regex
+            int n = extractInt(content, "\"n\"\\s*:\\s*(\\d+)");
+            int k = extractInt(content, "\"k\"\\s*:\\s*(\\d+)");
 
-        // Only collect 'k' pairs (for minimum required roots)
-        int count = 0;
-        for (Object keyObj : jsonObject.keySet()) {
-            String key = keyObj.toString();
-            if (key.equals("keys")) continue;
-            if (count == k)
-                break; // Only use the first 'k' pairs
-            JSONObject pair = (JSONObject) jsonObject.get(key);
-            int base = Integer.parseInt(pair.get("base").toString());
-            String valueStr = pair.get("value").toString();
+            // Find roots with regex pattern
+            Pattern pattern = Pattern.compile("\"(\\d+)\"\\s*:\\s*\\{[^}]*?\"base\"\\s*:\\s*\"(\\d+)\"\\s*,\\s*\"value\"\\s*:\\s*\"([^\"]+)\"[^}]*\\}");
+            Matcher matcher = pattern.matcher(content);
 
-            // Decode y value from base
-            double yDecoded;
-            if (base <= 10) {
-                yDecoded = Double.parseDouble(valueStr, base);
-            } else {
-                yDecoded = decodeBaseN(valueStr, base);
+            List<Double> xList = new ArrayList<>();
+            List<Double> yList = new ArrayList<>();
+            int count = 0;
+
+            while (matcher.find() && count < k) {
+                int x = Integer.parseInt(matcher.group(1));
+                int base = Integer.parseInt(matcher.group(2));
+                String val = matcher.group(3);
+
+                // Decode value from base using BigInteger
+                BigInteger bigVal = new BigInteger(val, base);
+                double y = bigVal.doubleValue();
+
+                xList.add((double) x);
+                yList.add(y);
+                count++;
             }
 
-            double xVal = Double.parseDouble(key);
-            xList.add(xVal);
-            yList.add(yDecoded);
-            count++;
+            double c = lagrangeInterpolation(xList, yList, 0.0);
+            System.out.println("File: " + filename + " | Constant term (C): " + Math.round(c));
+
+        } catch (FileNotFoundException e) {
+            System.err.println("File not found: " + filename);
         }
-
-        // Lagrange interpolation to find constant term (value at x=0)
-        double c = lagrangeInterpolation(xList, yList, 0);
-
-        // Print result
-        System.out.println("Constant term (C): " + Math.round(c));
     }
 
-    // Decode value from base-N (supports bases > 10)
-    public static double decodeBaseN(String value, int base) {
-        return Long.parseLong(value, base);
+    private static int extractInt(String text, String regex) {
+        Pattern p = Pattern.compile(regex);
+        Matcher m = p.matcher(text);
+        if (m.find()) {
+            return Integer.parseInt(m.group(1));
+        }
+        throw new RuntimeException("Key not found: " + regex);
     }
 
-    // Lagrange interpolation formula to get value at x=0
-    public static double lagrangeInterpolation(List<Double> x, List<Double> y, double x0) {
+    // Lagrange interpolation method
+    private static double lagrangeInterpolation(List<Double> x, List<Double> y, double x0) {
         int n = x.size();
         double result = 0.0;
         for (int i = 0; i < n; i++) {
@@ -73,3 +80,8 @@ public class HashiraPlacements {
         return result;
     }
 }
+
+
+
+     
+  
