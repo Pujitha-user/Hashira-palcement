@@ -1,0 +1,75 @@
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import java.io.FileReader;
+import java.util.*;
+
+public class HashiraPlacements {
+    public static void main(String[] args) throws Exception {
+        // Replace with your JSON file path
+        String filename = "testcase.json";
+
+        // Parse JSON input
+        JSONParser parser = new JSONParser();
+        JSONObject jsonObject = (JSONObject) parser.parse(new FileReader(filename));
+
+        JSONObject keys = (JSONObject) jsonObject.get("keys");
+        int n = Integer.parseInt(keys.get("n").toString());
+        int k = Integer.parseInt(keys.get("k").toString());
+
+        // Store decoded (x, y) pairs
+        List<Double> xList = new ArrayList<>();
+        List<Double> yList = new ArrayList<>();
+
+        // Only collect 'k' pairs (for minimum required roots)
+        int count = 0;
+        for (Object keyObj : jsonObject.keySet()) {
+            String key = keyObj.toString();
+            if (key.equals("keys")) continue;
+            if (count == k)
+                break; // Only use the first 'k' pairs
+            JSONObject pair = (JSONObject) jsonObject.get(key);
+            int base = Integer.parseInt(pair.get("base").toString());
+            String valueStr = pair.get("value").toString();
+
+            // Decode y value from base
+            double yDecoded;
+            if (base <= 10) {
+                yDecoded = Double.parseDouble(valueStr, base);
+            } else {
+                yDecoded = decodeBaseN(valueStr, base);
+            }
+
+            double xVal = Double.parseDouble(key);
+            xList.add(xVal);
+            yList.add(yDecoded);
+            count++;
+        }
+
+        // Lagrange interpolation to find constant term (value at x=0)
+        double c = lagrangeInterpolation(xList, yList, 0);
+
+        // Print result
+        System.out.println("Constant term (C): " + Math.round(c));
+    }
+
+    // Decode value from base-N (supports bases > 10)
+    public static double decodeBaseN(String value, int base) {
+        return Long.parseLong(value, base);
+    }
+
+    // Lagrange interpolation formula to get value at x=0
+    public static double lagrangeInterpolation(List<Double> x, List<Double> y, double x0) {
+        int n = x.size();
+        double result = 0.0;
+        for (int i = 0; i < n; i++) {
+            double term = y.get(i);
+            for (int j = 0; j < n; j++) {
+                if (j != i) {
+                    term *= (x0 - x.get(j)) / (x.get(i) - x.get(j));
+                }
+            }
+            result += term;
+        }
+        return result;
+    }
+}
